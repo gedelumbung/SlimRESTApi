@@ -4,23 +4,15 @@ require 'Slim/Slim.php';
 \Slim\Slim::registerAutoloader();
 
 $app = new \Slim\Slim();
-class ResourceNotFoundException extends Exception {}
 
-function authenticate(\Slim\Route $route) {
-    $app = \Slim\Slim::getInstance();
-    $username = $app->getEncryptedCookie('username');
-    $password = $app->getEncryptedCookie('password');
-    if (validateUserKey($username, $password) === false) {
-      $app->halt(401);
-    }
-}
-
-function validateUserKey($username, $password) {
-  if ($username == 'demo' && $password == 'demo') {
-    return true;
-  } else {
-    return false;
-  }
+function getConnection() {
+    $dbhost="127.0.0.1";
+    $dbuser="root";
+    $dbpass="";
+    $dbname="db_api_kota";
+    $dbh = new PDO("mysql:host=$dbhost;dbname=$dbname", $dbuser, $dbpass);
+    $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    return $dbh;
 }
 
 function validateApiKey($key) {
@@ -31,7 +23,7 @@ function validateApiKey($key) {
     return $sth->rowCount();
 }
 
-$authKey = function ( $route ) {
+$authKey = function ($route) {
     $app = \Slim\Slim::getInstance();
     $routeParams = $route->getParams();
     if (validateApiKey($routeParams["key"])==0) {
@@ -39,18 +31,8 @@ $authKey = function ( $route ) {
     }
 };
 
-$app->get('/login', function () use ($app) {    
-  try {
-    $app->setEncryptedCookie('username', 'demo', '30 minutes');
-    $app->setEncryptedCookie('password', 'demo', '30 minutes');
-  } catch (Exception $e) {
-    $app->response()->status(400);
-    $app->response()->header('X-Status-Reason', $e->getMessage());
-  }
-});
 
-
-$app->get('/city/:key/', $authKey, 'authenticate', function () use ($app)  {  
+$app->get('/city/:key/', $authKey, function () use ($app)  {  
     $sql = "select * FROM dlmbg_lokasi";
     try {
         $db = getConnection();
@@ -64,7 +46,7 @@ $app->get('/city/:key/', $authKey, 'authenticate', function () use ($app)  {
     }
 });
 
-$app->get('/city/:key/:id/', $authKey, 'authenticate', function ($key,$id) use ($app) {    
+$app->get('/city/:key/:id/', $authKey, function ($key,$id) use ($app) {    
     try { 
         $sql = "select * FROM dlmbg_lokasi where id_prov='".$id."'";
         $db = getConnection();
@@ -143,15 +125,7 @@ $app->delete('/city/:key/:id/', $authKey, function ($key,$id) use ($app) {
 
 
 
-function getConnection() {
-    $dbhost="127.0.0.1";
-    $dbuser="root";
-    $dbpass="";
-    $dbname="db_api_kota";
-    $dbh = new PDO("mysql:host=$dbhost;dbname=$dbname", $dbuser, $dbpass);
-    $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    return $dbh;
-}
+
 
 
 $app->run();
